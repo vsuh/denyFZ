@@ -12,8 +12,18 @@ from email.headerregistry import Address
 from email.mime.text import MIMEText
 from email.utils import make_msgid
 import re
+import os
 
 global logfile
+
+def settings1C():
+    env = os.environ
+    _cf = {'wcAddr' : env['C1.clstr']
+        , 'tcAddr'  : env['C1.clstrTST']
+        , 'ibAuth'  : (env['C1.IBadmin'], env['C1.IBpasswd'])
+        , 'clAuth'  : (env['C1.clstAdmin'], env['C1.clstPasswd'])
+        }
+    return _cf
 
 def _setEmergencyTitle(l):
     if l<1:
@@ -52,13 +62,18 @@ def inform(s='', t='', l=0):
         sm.send_message(msg)
         sm.quit()
 
-def _logfilename():
-    return 'c:/1c/cmd/log/FZ.deny'
+def _logfile_handler(_log_file_name):
+    # _log_file_name = 'c:/1c/cmd/log/FZ.deny'
+    try:
+        return open(_log_file_name, mode='a', encoding='UTF-8')
+    except FileNotFoundError:
+        return sys.stdout
 
-def logg(text):
-    _log = open(_logfilename(), 'a')
-    print(re.sub(r'\<[^>]*\>', '', text), file=_log)
+def logg(text, lf_name='LOG.LOG'):
+    _log = _logfile_handler(lf_name)
+    _log.write(re.sub(r'\<[^>]*\>', '', text)+'\n')
 
 # ***************************************************************************
 if __name__ == '__main__':
-    inform('Пример отправки','<b>Не отвечайте на это письмо!!!!</b> TEXT ',5)
+    inform('Пример отправки','Вам пришло это письмо из-за того, что библиотека suhLib.py была запущена как самостоятельный скрипт<br><b>Не отвечайте на это письмо!!!!</b> TEXT ',5)
+

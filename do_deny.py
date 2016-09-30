@@ -12,22 +12,23 @@ import os
 from datetime import datetime
 import suhLib
 
-global varz, npp, tm_start, err_text, eml_text, email, login
-varz = {'clAuth':('adm','321'), 'agAuth':('adm','321'),'w_cl':'obr-app-11', 't_cl':'OBR-APP-13 '}
-npp = 0
-tm_start = datetime.now()
-ar_prced = []
-eml_text = ''
+def version:
+    return '1.1.4'
+
+def init():
+    global err_text, cfg
+    if not os.environ['USERNAME'].lower() in ('tasker', 'goblin'):
+        err_text = err_text + '!!! попытка запустить скрипт от неподходящего пользователя провалилась !!!'
+        return False
+    cfg = suhLib.settings1C()
+    return True
+
+def now():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S ")
 
 def set_regl_task(test_cluster = True):
-    global varz, npp, tm_start, err_text, eml_text, email, login
+    global tm_start, err_text, eml_text, email, login
 
-    err_text = ''
-    email = True
-    login = True
-
-    def now():
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " [" + str(npp) + "]"
 
     def findIBdecriptionByIBName(ibName, Agent, Cluster):
         ibDescriptions = Agent.GetInfoBases(Cluster)
@@ -46,14 +47,9 @@ def set_regl_task(test_cluster = True):
         except BaseException as err:
             return 'error'
 
-    if test_cluster:
-        clAddr = 'OBR-APP-13'
-        clAuth = ('adm','321')
-        ibAuth = ('admin','kzueirf')
-    else:
-        clAddr = 'OBR-APP-11'
-        clAuth = ('adm','321')
-        ibAuth = ('admin','kzueirf')
+    clAddr = cfg['tcAddr'] if test_cluster else cfg['wcAddr']
+    clAuth = cfg['clAuth']
+    ibAuth = cfg['ibAuth']
 
     pythoncom.CoInitialize()
     V83 = win32com.client.Dispatch("V83.COMConnector")
@@ -61,7 +57,7 @@ def set_regl_task(test_cluster = True):
     Clsts = Agent.GetClusters()
     for cls in Clsts:
         print(now(), "CLST> ", cls.ClusterName, "/", cls.HostName, "/", cls.MainPort)
-        eml_text = eml_text + now() + "<h5>CLST> " + cls.ClusterName + "/" + cls.HostName + "/" + str(cls.MainPort) +'</h5>'
+        eml_text = eml_text + '\n\r'+now() + "<h5>CLST> " + cls.ClusterName + "/" + cls.HostName + "/" + str(cls.MainPort) +'</h5>'
         Agent.Authenticate(cls, *clAuth)
         Prcss = Agent.GetWorkingProcesses(cls)
         for prc in Prcss:
@@ -71,30 +67,40 @@ def set_regl_task(test_cluster = True):
             WrPrc.AddAuthentication(*ibAuth)
             Bases = WrPrc.GetInfoBases()
             for bse in Bases:
-
                 if bse.Name.upper()+'@'+cls.ClusterName.upper() in ar_prced:  # base already processed
                     continue
-                try:
-                    prv = '✔' if bse.ScheduledJobsDenied else '✘'
-                    atm = '✔' if test_cluster else '✘'
-                    ok = setDenialState(bse, WrPrc, test_cluster)
-                    # bse.ScheduledJobsDenied = False;
-                    # WrPrc.UpdateInfoBase(bse)
-                    print(now(), '  BSE>>', cls.HostName.upper()+":"+str(prc.MainPort)+ "/" +bse.Name, prv,'=>',atm,ok)
-                    eml_text = eml_text + '<li>'+now() + '  BSE>>' + cls.HostName.upper() + ":" + str(prc.MainPort) + "/<b style='color:navy'>" + bse.Name +'</b> '+ prv + ' => ' + atm +' ('+ ok+')'
-                    ar_prced.append(bse.Name.upper()+'@'+cls.ClusterName.upper())
-                except BaseException as err:
-                    err_text = 'we have problems, Huston' + err
-                    print(err_text)
-                    eml_text = eml_text + err_text
+                prv = 'V' if bse.ScheduledJobsDenied else 'X'
+                atm = 'V' if test_cluster else 'X'
+                ok = setDenialState(bse, WrPrc, test_cluster)
+                # bse.ScheduledJobsDenied = False;
+                # WrPrc.UpdateInfoBase(bse)
+                print(now(), '  BSE>>', cls.HostName.upper()+":"+str(prc.MainPort)+ "/" +bse.Name+'\t', prv,'->',atm,ok)
+                eml_text = eml_text +'\n\r'+ '<li>'+now() + '  BSE>>' + cls.HostName.upper() + ":" + str(prc.MainPort) + "/<b style='color:navy'>" + bse.Name.upper() +'</b> '+ prv + ' ➜ ' + atm +' ('+ ok+')'
+                ar_prced.append(bse.Name.upper()+'@'+cls.ClusterName.upper())
+try:
+    tm_start = datetime.now()
+    ar_prced = []
+    eml_text = ''
+    err_text = ''
+    email = True
+    login = True
+    cfg = dict()
+    if init():
+        set_regl_task()
+        set_regl_task(False)
+    print('done', (datetime.now() - tm_start).seconds, 'sec.')
+except BaseException as err:
+    print(err)
+    err_text = err_text + now()+'error occured '+str(err)
+    eml_text = eml_text +'\n\r'+ err_text
+finally:
+    eml_text = eml_text + '\n\r'+'<p>done ' + str((datetime.now() - tm_start).seconds) + ' sec.</p>'
+    if login:
+        suhLib.logg(eml_text, 'c:/1c/cmd/log/LOG.log')
+    if err_text:
+        print(err_text)
+        suhLib.inform('Setting reglament task enabling flag', err_text, 2)
+    else:
+        if email:
+            suhLib.inform('Test scheduled task report', eml_text, 1)
 
-set_regl_task()
-set_regl_task(False)
-print('done', (datetime.now() - tm_start).seconds, 'sec.')
-eml_text = eml_text + '<p>done ' + str((datetime.now() - tm_start).seconds) + ' sec.</p>'
-if err_text:
-    suhLib.inform('Setting reglament task enabling flag', err_text, 2)
-if email:
-    suhLib.inform('Test scheduled task report', eml_text, 1)
-if login:
-    suhLib.logg(eml_text)
