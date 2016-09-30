@@ -84,7 +84,7 @@ try:
     ar_prced = []
     eml_text = ''
     err_text = ''
-    email = True
+    email = False
     login = True
     cfg = dict()
     if init():
