@@ -7,6 +7,7 @@
 """
 
 # ☐ В init вызывать собственное исключение при ошибке
+# ☐ Сделать протоколирование работы в файл
 
 import pythoncom
 import win32com.client
@@ -15,12 +16,13 @@ from datetime import datetime
 import suhLib
 
 def version():
-    return '1.1.5'
+    return '1.1.6'
 
 def init():
     global err_text, cfg
     if not os.environ['USERNAME'].lower() in ('tasker', 'goblin'):
-        err_text = err_text + '!!! попытка запустить скрипт от неподходящего пользователя провалилась !!!'
+        err_text = err_text + '!!! попытка запустить скрипт от неподходящего '
+        +'пользователя провалилась !!!'
         return False
     cfg = suhLib.settings1C()
     return True
@@ -28,7 +30,7 @@ def init():
 def now():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S ")
 
-def set_regl_task(test_cluster = True):
+def set_regl_task(test_cluster=True):
     global tm_start, err_text, eml_text, email, login
 
 
@@ -59,25 +61,31 @@ def set_regl_task(test_cluster = True):
     Clsts = Agent.GetClusters()
     for cls in Clsts:
         print(now(), "CLST> ", cls.ClusterName, "/", cls.HostName, "/", cls.MainPort)
-        eml_text = eml_text + '\n\r'+now() + "<h5>CLST> " + cls.ClusterName + "/" + cls.HostName + "/" + str(cls.MainPort) +'</h5>'
+        eml_text = eml_text + '\n\r'+now() + "<h5>CLST> " + cls.ClusterName
+        + "/" + cls.HostName + "/" + str(cls.MainPort) +'</h5>'
         Agent.Authenticate(cls, *clAuth)
         Prcss = Agent.GetWorkingProcesses(cls)
         for prc in Prcss:
             if not prc.Running:
                 continue
-            WrPrc = V83.ConnectWorkingProcess('tcp://' + str(prc.HostName) + ":" + str(prc.MainPort))
+            WrPrc = V83.ConnectWorkingProcess('tcp://' + str(prc.HostName)
+                                              + ":" + str(prc.MainPort))
             WrPrc.AddAuthentication(*ibAuth)
             Bases = WrPrc.GetInfoBases()
             for bse in Bases:
-                if bse.Name.upper()+'@'+cls.ClusterName.upper() in ar_prced:  # base already processed
+                if bse.Name.upper()+'@'+cls.ClusterName.upper() in ar_prced:
                     continue
                 prv = 'V' if bse.ScheduledJobsDenied else 'X'
                 atm = 'V' if test_cluster else 'X'
                 ok = setDenialState(bse, WrPrc, test_cluster)
                 # bse.ScheduledJobsDenied = False;
                 # WrPrc.UpdateInfoBase(bse)
-                print(now(), '  BSE>>', cls.HostName.upper()+":"+str(prc.MainPort)+ "/" +bse.Name+'\t', prv,'->',atm,ok)
-                eml_text = eml_text +'\n\r'+ '<li>'+now() + '  BSE>>' + cls.HostName.upper() + ":" + str(prc.MainPort) + "/<b style='color:navy'>" + bse.Name.upper() +'</b> '+ prv + ' ➜ ' + atm +' ('+ ok+')'
+                print(now(), '  BSE>>', cls.HostName.upper()+":"+str(prc.MainPort)
+                      + "/" +bse.Name+'\t', prv, '->', atm, ok)
+                eml_text = eml_text +'\n\r'+ '<li>'+now() + '  BSE>>'
+                    + cls.HostName.upper() + ":" + str(prc.MainPort)
+                    + "/<b style='color:navy'>" + bse.Name.upper()
+                    +'</b> '+ prv + ' ➜ ' + atm +' ('+ ok+')'
                 ar_prced.append(bse.Name.upper()+'@'+cls.ClusterName.upper())
 try:
     tm_start = datetime.now()

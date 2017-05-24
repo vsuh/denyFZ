@@ -6,6 +6,7 @@
 
 Функция inform отправляет извещения на э-почту мне
 """
+
 import smtplib
 from email.headerregistry import Address
 # from email.message import EmailMessage
