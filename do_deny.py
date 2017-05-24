@@ -14,8 +14,8 @@ import os
 from datetime import datetime
 import suhLib
 
-def version:
-    return '1.1.4'
+def version():
+    return '1.1.5'
 
 def init():
     global err_text, cfg
