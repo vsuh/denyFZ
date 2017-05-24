@@ -65,7 +65,7 @@ def set_regl_task(test_cluster = True):
         for prc in Prcss:
             if not prc.Running:
                 continue
-            WrPrc = V83.ConnectWorkingProcess('tcp://' + str(cls.HostName) + ":" + str(prc.MainPort))
+            WrPrc = V83.ConnectWorkingProcess('tcp://' + str(prc.HostName) + ":" + str(prc.MainPort))
             WrPrc.AddAuthentication(*ibAuth)
             Bases = WrPrc.GetInfoBases()
             for bse in Bases:
