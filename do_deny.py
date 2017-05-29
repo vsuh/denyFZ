@@ -7,22 +7,37 @@
 """
 
 # ☐ В init вызывать собственное исключение при ошибке
-# ☐ Сделать протоколирование работы в файл
+# ✔ Сделать протоколирование работы в файл @done (May 29th 2017, 13:33)
 
 import pythoncom
 import win32com.client
-import os
+import os, sys
+import logging
+import inspect
 from datetime import datetime
 import suhLib
 
+log = logging.getLogger('FZ_flags_Control')
+log.setLevel(logging.DEBUG)
+fh = logging.FileHandler('log\\Regl.log' if os.path.exists(os.fspath('.\\log')) else 'LOG.LOG')
+fh.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.ERROR)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+log.addHandler(fh)
+log.addHandler(ch)
+
 def version():
-    return '1.1.6'
+    return '1.2.1'
 
 def init():
     global err_text, cfg
+    log.critical(os.path.basename('####### '+sys.argv[0])+' выполняется. Протокол пишется в '+log.handlers[0].baseFilename)
     if not os.environ['USERNAME'].lower() in ('tasker', 'goblin'):
-        err_text = err_text + '!!! попытка запустить скрипт от неподходящего '
-        +'пользователя провалилась !!!'
+        err_text = err_text + '!!! попытка запустить скрипт от неподходящего пользователя провалилась !!!'
+        log.error('!!! попытка запустить скрипт от неподходящего пользователя провалилась !!! line: '+str(inspect.currentframe().f_lineno))
         return False
     cfg = suhLib.settings1C()
     return True
@@ -43,12 +58,16 @@ def set_regl_task(test_cluster=True):
 
     def setDenialState(ib, conn, state):
         if ib.ScheduledJobsDenied == state:
+            log.info('Флаг запрета регламентных заданий для ИБ '+ib+' не изменен ('+state+')')
             return 'ok'
         try:
             ib.ScheduledJobsDenied = state
             conn.UpdateInfoBase(ib)
+            log.info('Флаг запрета регламентных заданий переустановлен для ИБ '+ib+' в значение '+state)
             return 'ok'
         except BaseException as err:
+            log.error('Не удалось выставить для ИБ '+ib+' флаг запрета РЗ в значение '+state)
+            err_text =+'Не удалось выставить для ИБ '+ib+' флаг запрета РЗ в значение '+state
             return 'error'
 
     clAddr = cfg['tcAddr'] if test_cluster else cfg['wcAddr']
@@ -61,15 +80,13 @@ def set_regl_task(test_cluster=True):
     Clsts = Agent.GetClusters()
     for cls in Clsts:
         print(now(), "CLST> ", cls.ClusterName, "/", cls.HostName, "/", cls.MainPort)
-        eml_text = eml_text + '\n\r'+now() + "<h5>CLST> " + cls.ClusterName
-        + "/" + cls.HostName + "/" + str(cls.MainPort) +'</h5>'
+        eml_text = eml_text + '\n\r'+now() + "<h5>CLST> " + cls.ClusterName + "/" + cls.HostName + "/" + str(cls.MainPort) +'</h5>'
         Agent.Authenticate(cls, *clAuth)
         Prcss = Agent.GetWorkingProcesses(cls)
         for prc in Prcss:
             if not prc.Running:
                 continue
-            WrPrc = V83.ConnectWorkingProcess('tcp://' + str(prc.HostName)
-                                              + ":" + str(prc.MainPort))
+            WrPrc = V83.ConnectWorkingProcess('tcp://' + str(prc.HostName) + ":" + str(prc.MainPort))
             WrPrc.AddAuthentication(*ibAuth)
             Bases = WrPrc.GetInfoBases()
             for bse in Bases:
@@ -78,14 +95,8 @@ def set_regl_task(test_cluster=True):
                 prv = 'V' if bse.ScheduledJobsDenied else 'X'
                 atm = 'V' if test_cluster else 'X'
                 ok = setDenialState(bse, WrPrc, test_cluster)
-                # bse.ScheduledJobsDenied = False;
-                # WrPrc.UpdateInfoBase(bse)
-                print(now(), '  BSE>>', cls.HostName.upper()+":"+str(prc.MainPort)
-                      + "/" +bse.Name+'\t', prv, '->', atm, ok)
-                eml_text = eml_text +'\n\r'+ '<li>'+now() + '  BSE>>'
-                    + cls.HostName.upper() + ":" + str(prc.MainPort)
-                    + "/<b style='color:navy'>" + bse.Name.upper()
-                    +'</b> '+ prv + ' ➜ ' + atm +' ('+ ok+')'
+                log.info('  BSE>>'+ cls.HostName.upper()+":"+str(prc.MainPort)+ "/" +bse.Name+'\t'+ prv+ ' -> '+ atm+' '+ok)
+                eml_text = eml_text +'\n\r'+ '<li>'+now() + '  BSE>>'+ cls.HostName.upper() + ":" + str(prc.MainPort)+ "/<b style='color:navy'>" + bse.Name.upper()+'</b> '+ prv + ' ➜ ' + atm +' ('+ ok+')'
                 ar_prced.append(bse.Name.upper()+'@'+cls.ClusterName.upper())
 try:
     tm_start = datetime.now()
@@ -100,17 +111,11 @@ try:
         set_regl_task(False)
     print('done', (datetime.now() - tm_start).seconds, 'sec.')
 except BaseException as err:
-    print(err)
-    err_text = err_text + now()+'error occured '+str(err)
-    eml_text = eml_text +'\n\r'+ err_text
+    err_text =+ now()+'error occured '+str(err)
 finally:
-    eml_text = eml_text + '\n\r'+'<p>done ' + str((datetime.now() - tm_start).seconds) + ' sec.</p>'
-    if login:
-        suhLib.logg(eml_text, 'c:/1c/cmd/log/LOG.log')
     if err_text:
         print(err_text)
         suhLib.inform('Setting reglament task enabling flag', err_text, 2)
-    else:
         if email:
             suhLib.inform('Test scheduled task report', eml_text, 1)
 
