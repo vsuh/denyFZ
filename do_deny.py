@@ -30,7 +30,7 @@ log.addHandler(fh)
 log.addHandler(ch)
 
 def version():
-    return '1.2.1'
+    return '1.2.2'
 
 def init():
     global err_text, cfg
