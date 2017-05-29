@@ -48,7 +48,6 @@ def now():
 def set_regl_task(test_cluster=True):
     global tm_start, err_text, eml_text, email, login
 
-
     def findIBdecriptionByIBName(ibName, Agent, Cluster):
         ibDescriptions = Agent.GetInfoBases(Cluster)
         for ibd in ibDescriptions:
@@ -58,16 +57,16 @@ def set_regl_task(test_cluster=True):
 
     def setDenialState(ib, conn, state):
         if ib.ScheduledJobsDenied == state:
-            log.info('Флаг запрета регламентных заданий для ИБ '+ib+' не изменен ('+state+')')
+            log.info('Флаг запрета регламентных заданий для ИБ '+str(ib.Name)+' не изменен ('+str(state)+')')
             return 'ok'
         try:
             ib.ScheduledJobsDenied = state
             conn.UpdateInfoBase(ib)
-            log.info('Флаг запрета регламентных заданий переустановлен для ИБ '+ib+' в значение '+state)
+            log.info('Флаг запрета регламентных заданий переустановлен для ИБ '+str(ib.Name)+' в значение '+str(state))
             return 'ok'
         except BaseException as err:
-            log.error('Не удалось выставить для ИБ '+ib+' флаг запрета РЗ в значение '+state)
-            err_text =+'Не удалось выставить для ИБ '+ib+' флаг запрета РЗ в значение '+state
+            log.error('Не удалось выставить для ИБ '+str(ib.Name)+' флаг запрета РЗ в значение '+str(state))
+            err_text =+'Не удалось выставить для ИБ '+str(ib.Name)+' флаг запрета РЗ в значение '+str(state)
             return 'error'
 
     clAddr = cfg['tcAddr'] if test_cluster else cfg['wcAddr']
@@ -111,7 +110,7 @@ try:
         set_regl_task(False)
     print('done', (datetime.now() - tm_start).seconds, 'sec.')
 except BaseException as err:
-    err_text =+ now()+'error occured '+str(err)
+    err_text += 'error occured '+str(err)
 finally:
     if err_text:
         print(err_text)
