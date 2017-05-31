@@ -20,7 +20,7 @@ import suhLib
 log = logging.getLogger('FZ_flags_Control')
 log.setLevel(logging.DEBUG)
 fh = logging.FileHandler('log\\Regl.log' if os.path.exists(os.fspath('.\\log')) else 'LOG.LOG')
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.ERROR)
 ch = logging.StreamHandler()
 ch.setLevel(logging.ERROR)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -30,7 +30,7 @@ log.addHandler(fh)
 log.addHandler(ch)
 
 def version():
-    return '1.2.2'
+    return '1.2.3'
 
 def init():
     global err_text, cfg
